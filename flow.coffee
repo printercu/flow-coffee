@@ -1,8 +1,11 @@
 flow = {}
-if typeof exports isnt "undefined"
+
+if module?.exports
   module.exports = flow
-else if typeof window isnt "undefined"
-  window.flow = flow
+else if define?.amd
+  define -> flow
+else
+  @flow = flow
 
 # defines a flow given any number of functions as arguments
 flow.define = ->
