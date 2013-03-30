@@ -1,6 +1,6 @@
 {
   "name": "flow-coffee",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Javascript Library for Multi-step Asynchronous Logic",
   "main": "flow.coffee",
   "scripts": {
@@ -13,6 +13,12 @@
   "keywords": [
     "async"
   ],
+  "devDependencies": {
+    "coffee-script": "*",
+    "mocha": "*",
+    "underscore": "*",
+    "flow": "*"
+  },
   "author": "Max Melentiev <melentievm@gmail.com>",
   "license": "BSD"
 }
