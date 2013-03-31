@@ -7,7 +7,27 @@ describe 'flow', ->
     it 'should return a function ', ->
       assert.equal 'function', typeof flow.define()
 
-    it 'should run'
+    it 'should run the flow', (cb) ->
+      x = []
+      f = flow.define(
+        -> nt => @ x.push 1
+        -> nt => @ x.push 2
+        -> @ assert.deepEqual x, [1, 2]
+        cb
+      )
+      f()
+
+    it 'should rerun the flow', (cb) ->
+      x = []
+      f = flow.define(
+        -> nt => @ x.push 1
+        -> nt => @ x.push 2
+      )
+      f()
+      f()
+      do wait = -> nt ->
+        return wait() unless x.length == 4
+        cb()
 
   describe '#exec()', ->
     it 'should run serial functions', (cb) ->
@@ -67,8 +87,7 @@ describe 'flow', ->
         )
 
     describe '#multi()', (cb) ->
-      it 'should run all functions on current step even if some functions aren`t async', (cb) ->
-        return cb() # need fix
+      it 'should run all functions on current step even if some functions aren`t async', null, (cb) ->
         [runs, times] = [0, 10]
         flow.exec(
           ->

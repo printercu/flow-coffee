@@ -70,19 +70,18 @@ flow.FlowState = class FlowState extends Function
       milliseconds
     )
 
-  # flow-js compability:
+  # flow-js compatibility:
   TIMEOUT:  @::setTimeout
   REWIND:   @::rewind
   MULTI:    @::multi
 
 # defines a flow given any number of functions as arguments
-flow.define = (args...)->
-  new FlowState(blocks: args)
+flow.define = (args...) ->
+  -> new FlowState(blocks: args)()
 
 # defines a flow and evaluates it immediately. The first flow function won't receive any arguments.
-flow.exec = (args...)->
-  (new FlowState blocks: args)()
-
+flow.exec = (args...) ->
+  new FlowState(blocks: args)()
 
 # helper methods
 flow.serialForEach = flow.define(

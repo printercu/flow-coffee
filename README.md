@@ -22,6 +22,14 @@ flow.returnIfAnyError = (results, callback) ->
 ### Removed upcase
 `REWIND`, `MULTI`, `TIMEOUT` are now `rewind`, `multi` & `setTitmeout`. Old names are left for compatibility.
 
+### `#define()` returns just function
+```coffee
+f = flow.define( -> )
+
+f.exec()  # removed. no one used i think
+f()       # keep it simple
+```
+
 ### prototype's aftermath
 For now works only with engines that support `__proto__` (v8 & rhino do).
 
