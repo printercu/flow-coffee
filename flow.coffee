@@ -1,13 +1,4 @@
-flow = {}
-
-if module?.exports
-  module.exports = flow
-else if define?.amd
-  define -> flow
-else
-  @flow = flow
-
-flow.FlowState = class FlowState extends Function
+class Flow extends Function
   constructor: (thisFlow) ->
     item = (args...) -> item.next args...
     item.__proto__    = @__proto__
@@ -19,20 +10,20 @@ flow.FlowState = class FlowState extends Function
     return item
 
   # TODO: fix runLater for @multi 
-  next: (args...) ->
+  next: ->
     return if @frozen
+    args = arguments
     if @timeoutId
       clearTimeout @timeoutId
       delete @timeoutId
     return @runLater = args if @running
     @running = true
-    @thisFlow.blocks[@nextBlockIdx++]
-      ?.apply @, args
+    @thisFlow.blocks[@nextBlockIdx++]?.apply @, args
     @running = false
-    if @runLater
-      args = @runLater
-      delete @runLater
-      @next args... 
+    return unless @runLater
+    args = @runLater
+    delete @runLater
+    @next args... 
 
   # _rewind_ signals that the next call to thisFlow should repeat this step. It allows you
   # to create serial loops.
@@ -75,34 +66,39 @@ flow.FlowState = class FlowState extends Function
   REWIND:   @::rewind
   MULTI:    @::multi
 
-# defines a flow given any number of functions as arguments
-flow.define = (args...) ->
-  -> new FlowState(blocks: args)()
+  # defines a flow given any number of functions as arguments
+  @define: -> args = arguments; => new @(blocks: args)()
 
-# defines a flow and evaluates it immediately. The first flow function won't receive any arguments.
-flow.exec = (args...) ->
-  new FlowState(blocks: args)()
+  # defines a flow and evaluates it immediately. The first flow function won't receive any arguments.
+  @exec: -> new @(blocks: arguments)()
 
-# helper methods
-flow.serialForEach = flow.define(
-  (@items, @job, @between, @finish) ->
-    @curItem = 0
-    @()
-  (args...) ->
-    @between? args... if @curItem
-    return @() if @curItem >= @items.length
-    @rewind()
-    @job @items[@curItem++]
-  ->
-    @finish?()
-)
+  # helper methods
+  @serialForEach: @define(
+    (@items, @job, @between, @finish) ->
+      @curItem = 0
+      @()
+    (args...) ->
+      @between? args... if @curItem
+      return @() if @curItem >= @items.length
+      @rewind()
+      @job @items[@curItem++]
+    ->
+      @finish?()
+  )
 
-flow.anyError = (results) ->
-  for result in results
-    return result[0] if result?[0]
-  null
+  @anyError: (results) ->
+    for result in results
+      return result[0] if result?[0]
+    null
 
-flow.returnIfAnyError = (results, callback) ->
-  return false unless err = @anyError results
-  callback? err
-  true
+  @returnIfAnyError: (results, callback) ->
+    return false unless err = @anyError results
+    callback? err
+    true
+
+if module?.exports
+  module.exports = Flow
+else if define?.amd
+  define -> Flow
+else
+  @flow = Flow
