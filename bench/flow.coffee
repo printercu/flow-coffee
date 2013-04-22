@@ -6,7 +6,7 @@ funcs = []
 for i in [1..10]
   do (i = i) =>
     funcs.push ->
-      process.nextTick =>
+      setImmediate =>
         #console.log "#{i}"
         @()
 
@@ -15,10 +15,10 @@ for i in [1..10]
   do (i = i) ->
     funcs_multi.push ->
       for j in [1..10]
-        do (cb = @MULTI(), j = j) -> process.nextTick ->
+        do (cb = @MULTI(), j = j) -> setImmediate ->
           #console.log "#{i}: #{j}"
           cb()
-funcs_multi.push -> process.nextTick => @()
+funcs_multi.push -> setImmediate => @()
 
 funcs = funcs_multi
 
