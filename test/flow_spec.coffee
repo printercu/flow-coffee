@@ -72,85 +72,93 @@ describe 'flow', ->
         cb
       )
 
-    describe '#multi()', (cb) ->
-      it 'should run all functions on current step', (cb) ->
-        [runs, times] = [0, 10]
-        flow.exec(
-          ->
-            for i in [1..times]
-              do (cb = @multi()) -> nt -> cb null, ++runs
-          (results) ->
-            assert.equal runs, times, "not enough runs: #{runs} of #{times}"
-            assert.equal results.length, times, "results length does not match: #{results.length} != #{times}"
-            @()
-          cb
-        )
+  describe '#multi()', (cb) ->
+    it 'should run all functions on current step', (cb) ->
+      [runs, times] = [0, 10]
+      flow.exec(
+        ->
+          for i in [1..times]
+            do (cb = @multi()) -> nt -> cb null, ++runs
+        (err, results) ->
+          assert.equal runs, times, "not enough runs: #{runs} of #{times}"
+          assert.equal results.length, times, "results length does not match: #{results.length} != #{times}"
+          @()
+        cb
+      )
 
-    describe '#multi()', (cb) ->
-      it 'should run all functions on current step even if some functions aren`t async', null, (cb) ->
-        [runs, times] = [0, 10]
-        flow.exec(
-          ->
-            for i in [1..times]
-              do (cb = @multi()) -> cb null, ++runs
-          (results) ->
-            console.log results
-            console.log runs
-            assert.equal runs, times, "not enough runs: #{runs} of #{times}"
-            assert.equal results.length, times, "results length does not match: #{results.length} != #{times}"
-            @()
-          cb
-        )
+    it 'should call next function with first occured error as first argument', (cb) ->
+      flow.exec(
+        ->
+          do (cb = @multi()) -> nt -> cb null
+          do (cb = @multi()) -> nt -> cb 'err'
+          do (cb = @multi()) -> nt -> cb null
+        (err, results) ->
+          assert.equal err, 'err'
+          do (cb = @multi()) -> nt -> cb null
+          do (cb = @multi()) -> nt -> cb null
+        (err, results) ->
+          assert.equal err, null
+          @()
+        cb
+      )
 
-  describe 'helpers:', ->
-    describe 'anyError', ->
-      it 'should be null if no error occured', (cb) ->
-        flow.exec(
-          ->
-            do (cb = @multi()) -> nt -> cb null, 1, 2, 3
-            do (cb = @multi 'test') -> nt -> cb null
-          (results) ->
-            assert.equal null, flow.anyError results
-            @()
-          cb
-        )
+    it 'should preserve results order', (cb) ->
+      run = []
+      flow.exec(
+        ->
+          do (cb = @multi()) -> nt -> nt -> run.push 1; cb 1
+          do (cb = @multi()) -> nt ->       run.push 2; cb 2
+        (err, results)->
+          assert.deepEqual run, [2, 1]
+          assert.deepEqual (x[0] for x in results), [1, 2]
+          @()
+        cb
+      )
 
-      it 'should be not null on error', (cb) ->
-        flow.exec(
-          ->
-            do (cb = @multi()) -> nt -> cb null, 1, 2, 3
-            do (cb = @multi 'test') -> nt -> cb 'error'
-            do (cb = @multi()) -> nt -> cb null
-          (results) ->
-            assert.notEqual null, flow.anyError results
-            @()
-          cb
-        )
+    # TODO:
+    it 'should run all functions on current step even if some functions aren`t async', null, (cb) ->
+      [runs, times] = [0, 10]
+      flow.exec(
+        ->
+          for i in [1..times]
+            do (cb = @multi()) -> cb null, ++runs
+        (err, results) ->
+          console.log results
+          console.log runs
+          assert.equal runs, times, "not enough runs: #{runs} of #{times}"
+          assert.equal results.length, times, "results length does not match: #{results.length} != #{times}"
+          @()
+        cb
+      )
 
-    describe 'returnIfAnyError', ->
-      it 'should be false & should not call function if no error occured', (cb) ->
-        called = false
-        flow.exec(
-          ->
-            do (cb = @multi()) -> nt -> cb null, 1, 2, 3
-            do (cb = @multi 'test') -> nt -> cb null
-          (results) ->
-            assert.equal false, flow.returnIfAnyError results, -> called = true
-            assert.equal called, false
-            @()
-          cb
-        )
+  describe '#error', ->
+    it 'should run only error callback on error if present', (cb) ->
+      flow.exec(
+        -> nt => @ 'err'
+        -> assert false, 'should not be run'
+      ).error (err) ->
+        assert.equal err, 'err'
+        cb()
 
-      it 'should be true & should call function on error', (cb) ->
-        called = false
-        flow.exec(
-          ->
-            do (cb = @multi()) -> nt -> cb null, 1, 2, 3
-            do (cb = @multi 'test') -> nt -> cb 'error'
-            do (cb = @multi()) -> nt -> cb null
-          (results) ->
-            assert.equal true, flow.returnIfAnyError results, -> called = true
-            assert.equal called, true
-            @()
-          cb
-        )
+    it 'should run only error callback on error if present in multi mode', (cb) ->
+      flow.exec(
+        ->
+          do (cb = @multi()) -> nt -> cb null
+          do (cb = @multi()) -> nt -> cb 'err'
+        -> assert false, 'should not be run'
+      ).error (err) ->
+        assert.equal err, 'err'
+        cb()
+
+    it 'should resume flow', (cb) ->
+      run = false
+      flow.exec(
+        -> nt => @ 'err'
+        ->
+          assert run
+          @()
+        cb
+      ).error (err) ->
+        assert.equal err, 'err'
+        run = true
+        @()

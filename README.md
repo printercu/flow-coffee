@@ -6,20 +6,7 @@ For now original flow-js is rewritten with using of prototypes. It improved perf
 
 ## Other differences:
 
-### Helpers
-```coffee
-flow.anyError = (results) ->
-  for result in results
-    return result[0] if result?[0]
-  null
-
-flow.returnIfAnyError = (results, callback) ->
-  return false unless err = @anyError results
-  callback? err
-  true
-```
-
-### Removed upcase
+### downcase
 `REWIND`, `MULTI`, `TIMEOUT` are now `rewind`, `multi` & `setTitmeout`. Old names are left for compatibility.
 
 ### `#define()` returns just function
@@ -48,7 +35,7 @@ flow.exec(
 )
 ```
 
-### Support for not async functions (not working with `@multi`)
+### Support for not async functions (not working with `@multi` yet)
 ```coffee
 flow.exec(
   ->
@@ -62,4 +49,37 @@ flow.exec(
 # flow-coffee: 1 2 3
 ```
 
-### Multiple results are stored in the order the `@multi()` is called, not callbacks.
+### Multiple results are stored in the order the `@multi()` is called, not callbacks
+```coffee
+nt = proccess.nextTick
+it 'should preserve results order', (cb) ->
+  run = []
+  flow.exec(
+    ->
+      do (cb = @multi()) -> nt -> nt -> run.push 1; cb 1
+      # this will be ready first:
+      do (cb = @multi()) -> nt ->       run.push 2; cb 2
+    (err, results)->
+      assert.deepEqual run, [2, 1]
+      assert.deepEqual (x[0] for x in results), [1, 2]
+      @()
+    cb
+  )
+```
+
+### Function after `@multi` is called with 2 arguments
+It's incompatible with original flow, but I've found it very convenient.
+
+First argument is set to the first error passed to any `@multi()`. Second is the original results array.
+
+### Callback on any error
+```coffee
+flow.exec(
+  -> setImmediate => @ 'error'
+  -> # this won't run
+).error ->
+  # this will run
+  # resume flow with @()
+```
+
+### Take a look at tests for examples & undocumented features

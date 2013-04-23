@@ -1,54 +1,64 @@
 class Flow extends Function
   constructor: (thisFlow) ->
-    item = (args...) -> item.next args...
-    item.__proto__    = @__proto__
-    item.thisFlow     = thisFlow
-    item.nextBlockIdx = 0
-    item.multiCount   = 0
-    item.multiOutputs = []
-    item.multiOutputsSerial = 0
+    item = -> item.next arguments...
+    item.__proto__      = @__proto__
+    item.thisFlow       = thisFlow
+    item.nextBlockIdx   = 0
+    item._multiCount    = 0
+    item._multiError    = null
+    item._multiResults  = []
+    item._multiSn       = 0
     return item
 
   # TODO: fix runLater for @multi 
-  next: ->
-    return if @frozen
-    args = arguments
+  next: (err) ->
+    return @ if @frozen
     if @timeoutId
       clearTimeout @timeoutId
       delete @timeoutId
-    return @runLater = args if @running
+    if @running
+      @runLater = arguments
+      return @
     @running = true
-    @thisFlow.blocks[@nextBlockIdx++]?.apply @, args
+    if @thisFlow.error && err?
+      @thisFlow.error.apply @, arguments
+    else
+      @thisFlow.blocks[@nextBlockIdx++]?.apply @, arguments
     @running = false
-    return unless @runLater
+    return @ unless @runLater
     args = @runLater
     delete @runLater
-    @next args... 
+    @next args...
 
   # _rewind_ signals that the next call to thisFlow should repeat this step. It allows you
   # to create serial loops.
   rewind: (n = 1) ->
     @nextBlockIdx = Math.max 0, @nextBlockIdx - n
+    @
 
   skip: (n = 1) ->
     @nextBlockIdx += n
+    @
 
   # _multi_ can be used to generate callbacks that must ALL be called before the next step
   # in the flow is executed. Arguments to those callbacks are accumulated, and an array of
   # of those arguments objects is sent as the one argument to the next step in the flow.
   # @param {String} resultId An identifier to get the result of a multi call.
   multi: (resultId) ->
-    result_serial = @multiOutputsSerial++
-    @multiCount++
-    =>
-      @multiCount--
-      @multiOutputs[result_serial]  = arguments
-      @multiOutputs[resultId]       = arguments if resultId
-      return if @multiCount
-      multiOutputs        = @multiOutputs
-      @multiOutputs       = []
-      @multiOutputsSerial = 0
-      @next multiOutputs
+    result_sn = @_multiSn++
+    @_multiCount++
+    (err) =>
+      @_multiCount--
+      @_multiError = err if err? && !@_multiError?
+      @_multiResults[result_sn] = arguments
+      @_multiResults[resultId]  = arguments if resultId
+      return @ if @_multiCount
+      error           = @_multiError
+      results         = @_multiResults
+      @_multiError    = null
+      @_multiResults  = []
+      @_multiSn       = 0
+      @next error, results
 
   # _setTimeout_ sets a timeout that freezes a flow and calls the provided callback. This
   # timeout is cleared if the next flow step happens first.
@@ -60,6 +70,12 @@ class Flow extends Function
         timeoutCallback.call @
       milliseconds
     )
+    @
+
+  # set error handler
+  error: (fn) ->
+    @thisFlow.error = fn
+    @
 
   # flow-js compatibility:
   TIMEOUT:  @::setTimeout
@@ -77,24 +93,14 @@ class Flow extends Function
     (@items, @job, @between, @finish) ->
       @curItem = 0
       @()
-    (args...) ->
-      @between? args... if @curItem
+    ->
+      @between? arguments... if @curItem
       return @() if @curItem >= @items.length
       @rewind()
       @job @items[@curItem++]
     ->
       @finish?()
   )
-
-  @anyError: (results) ->
-    for result in results
-      return result[0] if result?[0]
-    null
-
-  @returnIfAnyError: (results, callback) ->
-    return false unless err = @anyError results
-    callback? err
-    true
 
 if module?.exports
   module.exports = Flow
