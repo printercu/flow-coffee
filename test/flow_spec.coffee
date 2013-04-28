@@ -192,9 +192,22 @@ describe 'flow', ->
             done()
         ]
         error: (args..., cb) ->
-          console.log arguments
           assert.deepEqual @, obj
           err_run += 1
           cb(null)
         context: obj
       )(null, 1, 2, 3)
+
+    it 'should interpret strings as context`s methods', (done) ->
+      obj =
+        method: (cb) -> nt -> cb 'error'
+        other_method: -> done()
+        error: (err, cb) -> cb()
+      do new flow(
+        blocks: [
+          'method'
+          'other_method'
+        ]
+        error: 'error'
+        context: obj
+      )

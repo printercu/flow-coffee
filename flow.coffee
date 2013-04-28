@@ -26,6 +26,7 @@ class Flow extends Function
       @options.blocks[@nextBlockIdx++]
     if fn
       if @options.context
+        fn = @options.context[fn] unless typeof fn == 'function'
         fn.apply @options.context, Array::slice.call(arguments).concat [@]
       else
         fn.apply @, arguments

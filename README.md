@@ -6,6 +6,30 @@ For now original flow-js is rewritten with using of prototypes. It improved perf
 
 ## Other differences:
 
+### Custom context
+```coffee
+obj = {}
+do new flow(
+  context: obj
+  blocks: [
+    # If context is specified last argument is always a flow instance
+    (cb) ->
+      @ == obj # true
+      cb() # It's callback
+    (cb) ->
+      do (cb = cb.multi()) -> # multi is also available
+        setImmediate -> cb()
+    (err, results, cb) -> # ...
+  ]
+)
+```
+
+#### Find method by name
+```coffee
+obj = method: (cb) -> # ...
+do new flow blocks: ['method', (cb) -> ], context: obj
+```
+
 ### downcase
 `REWIND`, `MULTI`, `TIMEOUT` are now `rewind`, `multi` & `setTitmeout`. Old names are left for compatibility.
 

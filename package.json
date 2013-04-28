@@ -1,6 +1,6 @@
 {
   "name": "flow-coffee",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Javascript Library for Multi-step Asynchronous Logic",
   "main": "flow.coffee",
   "scripts": {
