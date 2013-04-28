@@ -1,8 +1,8 @@
 class Flow extends Function
-  constructor: (thisFlow) ->
+  constructor: (options) ->
     item = -> item.next arguments...
     item.__proto__      = @__proto__
-    item.thisFlow       = thisFlow
+    item.options        = options
     item.nextBlockIdx   = 0
     item._multiCount    = 0
     item._multiError    = null
@@ -20,10 +20,15 @@ class Flow extends Function
       @runLater = arguments
       return @
     @running = true
-    if @thisFlow.error && err?
-      @thisFlow.error.apply @, arguments
+    fn = if @options.error && err?
+      @options.error
     else
-      @thisFlow.blocks[@nextBlockIdx++]?.apply @, arguments
+      @options.blocks[@nextBlockIdx++]
+    if fn
+      if @options.context
+        fn.apply @options.context, Array::slice.call(arguments).concat [@]
+      else
+        fn.apply @, arguments
     @running = false
     return @ unless @runLater
     args = @runLater
@@ -74,7 +79,7 @@ class Flow extends Function
 
   # set error handler
   error: (fn) ->
-    @thisFlow.error = fn
+    @options.error = fn
     @
 
   # flow-js compatibility:

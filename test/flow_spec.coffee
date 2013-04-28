@@ -162,3 +162,39 @@ describe 'flow', ->
         assert.equal err, 'err'
         run = true
         @()
+
+  describe 'when context is given', ->
+    it 'should run all the functions in this context', (done) ->
+      obj = {a: 1}
+      run = 0
+      multi = 3
+      err_run = 0
+      new flow(
+        blocks: [
+          (args..., cb) ->
+            assert.deepEqual @, obj
+            assert.deepEqual args, [null, 1, 2, 3]
+            nt ->
+              cb()
+          (cb) ->
+            assert.deepEqual @, obj
+            for i in [1..multi]
+              do (cb = cb.multi()) -> nt ->
+                run += 1
+                cb()
+          (err, results, cb) ->
+            assert.deepEqual @, obj
+            nt -> cb 'error'
+          ->
+            assert.deepEqual @, obj
+            assert.equal run, multi
+            assert.equal err_run, 1
+            done()
+        ]
+        error: (args..., cb) ->
+          console.log arguments
+          assert.deepEqual @, obj
+          err_run += 1
+          cb(null)
+        context: obj
+      )(null, 1, 2, 3)
