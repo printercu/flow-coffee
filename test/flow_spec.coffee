@@ -131,6 +131,14 @@ describe 'flow', ->
         cb
       )
 
+    it 'should throw exception when calling next() in multi mode', (cb) ->
+      flow.exec(
+        ->
+          nt => assert.throws => @()
+          do (cb = @multi()) -> nt -> cb()
+        cb
+      )
+
   describe '#error', ->
     it 'should run only error callback on error if present', (cb) ->
       flow.exec(

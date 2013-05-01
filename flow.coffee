@@ -4,6 +4,7 @@ class Flow extends Function
     item.__proto__      = @__proto__
     item.options        = options
     item.nextBlockIdx   = 0
+    item.isMulti        = false
     item._multiCount    = 0
     item._multiError    = null
     item._multiResults  = []
@@ -12,6 +13,7 @@ class Flow extends Function
 
   # TODO: fix runLater for @multi 
   next: (err) ->
+    throw 'Flow: next() called while flow is in multi mode' if @isMulti
     return @ if @frozen
     if @timeoutId
       clearTimeout @timeoutId
@@ -52,6 +54,7 @@ class Flow extends Function
   # @param {String} resultId An identifier to get the result of a multi call.
   multi: (resultId) ->
     result_sn = @_multiSn++
+    @isMulti  = true
     @_multiCount++
     (err) =>
       @_multiCount--
@@ -63,6 +66,7 @@ class Flow extends Function
       results         = @_multiResults
       @_multiError    = null
       @_multiResults  = []
+      @isMulti        = false
       @_multiSn       = 0
       @next error, results
 
