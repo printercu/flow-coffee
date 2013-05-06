@@ -211,11 +211,35 @@ describe 'flow', ->
         method: (cb) -> nt -> cb 'error'
         other_method: -> done()
         error: (err, cb) -> cb()
-      do new flow(
+      do new flow
         blocks: [
           'method'
           'other_method'
         ]
-        error: 'error'
-        context: obj
-      )
+        error:    'error'
+        context:  obj
+
+  describe '#after', ->
+    it 'should append blocks in reverse order, `final` should run last', (done) ->
+      runs = []
+      do new flow
+        blocks: [
+          ->
+            runs.push 1
+            @after ->
+              runs.push 5
+              nt @
+            nt @
+          ->
+            runs.push 2
+            @after ->
+              runs.push 4
+              nt @
+            nt @
+          ->
+            runs.push 3
+            nt @
+        ]
+        final: ->
+          assert.deepEqual runs, [1..5]
+          done()

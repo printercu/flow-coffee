@@ -9,6 +9,7 @@ class Flow extends Function
     item._multiError    = null
     item._multiResults  = []
     item._multiSn       = 0
+    item._afterCount    = 0
     return item
 
   # TODO: fix runLater for @multi 
@@ -25,7 +26,7 @@ class Flow extends Function
     fn = if @options.error && err?
       @options.error
     else
-      @options.blocks[@nextBlockIdx++]
+      @options.blocks[@nextBlockIdx++] || @options.final
     if fn
       if @options.context
         fn = @options.context[fn] unless typeof fn == 'function'
@@ -38,8 +39,8 @@ class Flow extends Function
     delete @runLater
     @next args...
 
-  # _rewind_ signals that the next call to thisFlow should repeat this step. It allows you
-  # to create serial loops.
+  # signals that the next call to thisFlow should repeat this step.
+  # It allows you to create serial loops.
   rewind: (n = 1) ->
     @nextBlockIdx = Math.max 0, @nextBlockIdx - n
     @
@@ -48,10 +49,10 @@ class Flow extends Function
     @nextBlockIdx += n
     @
 
-  # _multi_ can be used to generate callbacks that must ALL be called before the next step
-  # in the flow is executed. Arguments to those callbacks are accumulated, and an array of
-  # of those arguments objects is sent as the one argument to the next step in the flow.
-  # @param {String} resultId An identifier to get the result of a multi call.
+  # Can be used to generate callbacks that must ALL be called before
+  # the next step in the flow is executed. Arguments to those callbacks are
+  # accumulated, and an array of of those arguments objects is sent
+  # as the one argument to the next step in the flow.
   multi: (resultId) ->
     result_sn = @_multiSn++
     @isMulti  = true
@@ -70,8 +71,16 @@ class Flow extends Function
       @_multiSn       = 0
       @next error, results
 
-  # _setTimeout_ sets a timeout that freezes a flow and calls the provided callback. This
-  # timeout is cleared if the next flow step happens first.
+  after: (fn) ->
+    blocks = Array::slice.call @options.blocks
+    append = if @_afterCount then blocks.slice(-@_afterCount) else []
+    @options.blocks = blocks.slice(0, blocks.length - @_afterCount)
+      .concat [fn], append
+    @_afterCount++
+    @
+
+  # Sets a timeout that freezes a flow and calls the provided callback.
+  # This timeout is cleared if the next flow step happens first.
   setTimeout: (milliseconds, timeoutCallback) ->
     throw new Error "timeout already set for this flow step" if @timeoutId
     @timeoutId = setTimeout(
@@ -82,7 +91,7 @@ class Flow extends Function
     )
     @
 
-  # set error handler
+  # Set error handler
   error: (fn) ->
     @options.error = fn
     @
@@ -92,10 +101,11 @@ class Flow extends Function
   REWIND:   @::rewind
   MULTI:    @::multi
 
-  # defines a flow given any number of functions as arguments
+  # Defines a flow given any number of functions as arguments.
   @define: -> args = arguments; => new @(blocks: args)()
 
-  # defines a flow and evaluates it immediately. The first flow function won't receive any arguments.
+  # Defines a flow and evaluates it immediately.
+  # The first flow function won't receive any arguments.
   @exec: -> new @(blocks: arguments)()
 
   # helper methods
