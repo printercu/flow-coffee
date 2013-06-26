@@ -1,16 +1,16 @@
 class Flow extends Function
   constructor: (options) ->
-    item = -> item.next arguments...
-    item.__proto__      = @__proto__
-    item.options        = options
-    item.nextBlockIdx   = 0
-    item.isMulti        = false
-    item._multiCount    = 0
-    item._multiError    = null
-    item._multiResults  = []
-    item._multiSn       = 0
-    item._afterCount    = 0
-    return item
+    self = -> self.next arguments...
+    self.__proto__      = @__proto__
+    self.options        = options
+    self.nextBlockIdx   = 0
+    self.isMulti        = false
+    self._multiCount    = 0
+    self._multiError    = null
+    self._multiResults  = []
+    self._multiSn       = 0
+    self._afterCount    = 0
+    return self
 
   # TODO: fix runLater for @multi 
   next: (err) ->
@@ -30,9 +30,12 @@ class Flow extends Function
     if fn
       if @options.context
         fn = @options.context[fn] unless typeof fn == 'function'
-        fn.apply @options.context, Array::slice.call(arguments).concat [@]
+        args = Array::slice.call(arguments, (if @options.error && !err? then 1 else 0))
+        args.push @
+        fn.apply @options.context, args
       else
-        fn.apply @, arguments
+        args = if @options.error && !err? then Array::slice.call(arguments, 1) else arguments
+        fn.apply @, args
     @running = false
     return @ unless @runLater
     args = @runLater
@@ -91,9 +94,13 @@ class Flow extends Function
     )
     @
 
-  # Set error handler
+  # Set handlers
   error: (fn) ->
     @options.error = fn
+    @
+
+  final: (fn) ->
+    @options.final = fn
     @
 
   # flow-js compatibility:
@@ -102,7 +109,9 @@ class Flow extends Function
   MULTI:    @::multi
 
   # Defines a flow given any number of functions as arguments.
-  @define: -> args = arguments; => new @(blocks: args)()
+  @define: ->
+    args = arguments
+    => new @(blocks: args)()
 
   # Defines a flow and evaluates it immediately.
   # The first flow function won't receive any arguments.

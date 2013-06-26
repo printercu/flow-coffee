@@ -1,14 +1,24 @@
 # Flow-coffee
 
-Started with few little pull requests for https://github.com/willconant/flow-js. Then got tired of compiling coffee to js, posting it and started this repo.
+Started with few little pull requests for https://github.com/willconant/flow-js.
+Then implemented it with coffee and added few new features.
 
-For now original flow-js is rewritten with using of prototypes. It improved performance & memory usage. Just a little. Benchmarks are inside (you'll need `node-benchmark` package, run it with `nbm bench/flow.coffee`).
+For now original flow-js is rewritten with using of prototypes.
+It improved performance & memory usage.
+Just a little. Benchmarks are inside (you'll need `node-benchmark` package,
+run it with `nbm bench/flow.coffee`).
 
 ## Other differences:
 
+### No js version
+For now there is no js version. Just `require('coffee-script')` before
+`require('flow-coffee')`.
+
 ### Custom context
 ```coffee
-obj = {}
+obj =
+  someMethod: -> # ...
+
 do new flow(
   context: obj
   blocks: [
@@ -17,9 +27,11 @@ do new flow(
       @ == obj # true
       cb() # It's callback
     (cb) ->
-      do (cb = cb.multi()) -> # multi is also available
-        setImmediate -> cb()
+      do (cb_multi = cb.multi()) -> # multi is also available
+        setImmediate -> cb_multi()
     (err, results, cb) -> # ...
+    'someMethod' # calls method from context
+    (err, cb) -> # other callback
   ]
 )
 ```
@@ -31,7 +43,8 @@ do new flow blocks: ['method', (cb) -> ], context: obj
 ```
 
 ### downcase
-`REWIND`, `MULTI`, `TIMEOUT` are now `rewind`, `multi` & `setTitmeout`. Old names are left for compatibility.
+`REWIND`, `MULTI`, `TIMEOUT` are now `rewind`, `multi` & `setTitmeout`.
+Old names are left for compatibility.
 
 ### `#define()` returns just function
 ```coffee
@@ -55,7 +68,7 @@ flow.exec(
   ->
     state = @
     ... ->
-      func state.func() # ok
+      func state.multi() # ok
 )
 ```
 
@@ -99,9 +112,13 @@ First argument is set to the first error passed to any `@multi()`. Second is the
 ### Callback on any error
 ```coffee
 flow.exec(
-  -> setImmediate => @ 'error'
+  -> @ null, 'test'
+  (arg) ->
+    # strips first (error) arguments for usual callbacks
+    assert.equal arg, 'test'
+    setImmediate => @ 'error'
   -> # this won't run
-).error ->
+).error (err) ->
   # this will run
   # resume flow with @()
 ```

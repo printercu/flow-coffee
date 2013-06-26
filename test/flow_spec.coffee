@@ -1,23 +1,23 @@
 assert  = require 'assert'
 flow    = require '../flow'
-nt      = process.nextTick
+nt      = setImmediate
 
-describe 'flow', ->
+describe 'Flow', ->
   describe '#define()', ->
-    it 'should return a function ', ->
+    it 'returns a function ', ->
       assert.equal 'function', typeof flow.define()
 
-    it 'should run the flow', (cb) ->
+    it 'runs the flow', (done) ->
       x = []
       f = flow.define(
         -> nt => @ x.push 1
         -> nt => @ x.push 2
         -> @ assert.deepEqual x, [1, 2]
-        cb
+        done
       )
       f()
 
-    it 'should rerun the flow', (cb) ->
+    it 'reruns the flow', (done) ->
       x = []
       f = flow.define(
         -> nt => @ x.push 1
@@ -27,10 +27,10 @@ describe 'flow', ->
       f()
       do wait = -> nt ->
         return wait() unless x.length == 4
-        cb()
+        done()
 
   describe '#exec()', ->
-    it 'should run serial functions', (cb) ->
+    it 'runs serial functions', (done) ->
       x = []
       flow.exec(
         ->
@@ -43,10 +43,10 @@ describe 'flow', ->
         (l) ->
           assert.equal x.length, l
           @ assert.deepEqual x, [1, 2]
-        cb
+        done
       )
 
-    it 'should run serial not async functions', (cb) ->
+    it 'runs serial not async functions', (done) ->
       x = []
       flow.exec(
         ->
@@ -59,21 +59,21 @@ describe 'flow', ->
         (l) ->
           assert.equal x.length, l
           @ assert.deepEqual x, [1, 2]
-        cb
+        done
       )
 
-    it 'should pass arguments', (cb) ->
+    it 'passes arguments', (done) ->
       flow.exec(
         -> @ 1, 2
         (x, y) ->
           assert.equal x, 1
           assert.equal y, 2
           @()
-        cb
+        done
       )
 
-  describe '#multi()', (cb) ->
-    it 'should run all functions on current step', (cb) ->
+  describe '#multi()', ->
+    it 'runs all functions on current step', (done) ->
       [runs, times] = [0, 10]
       flow.exec(
         ->
@@ -83,10 +83,10 @@ describe 'flow', ->
           assert.equal runs, times, "not enough runs: #{runs} of #{times}"
           assert.equal results.length, times, "results length does not match: #{results.length} != #{times}"
           @()
-        cb
+        done
       )
 
-    it 'should call next function with first occured error as first argument', (cb) ->
+    it 'calls next function with first occured error as first argument', (done) ->
       flow.exec(
         ->
           do (cb = @multi()) -> nt -> cb null
@@ -99,10 +99,10 @@ describe 'flow', ->
         (err, results) ->
           assert.equal err, null
           @()
-        cb
+        done
       )
 
-    it 'should preserve results order', (cb) ->
+    it 'preserves results order', (done) ->
       run = []
       flow.exec(
         ->
@@ -112,11 +112,11 @@ describe 'flow', ->
           assert.deepEqual run, [2, 1]
           assert.deepEqual (x[0] for x in results), [1, 2]
           @()
-        cb
+        done
       )
 
     # TODO:
-    it 'should run all functions on current step even if some functions aren`t async', null, (cb) ->
+    it 'runs all functions on current step even if some functions aren`t async', null, (done) ->
       [runs, times] = [0, 10]
       flow.exec(
         ->
@@ -128,27 +128,27 @@ describe 'flow', ->
           assert.equal runs, times, "not enough runs: #{runs} of #{times}"
           assert.equal results.length, times, "results length does not match: #{results.length} != #{times}"
           @()
-        cb
+        done
       )
 
-    it 'should throw exception when calling next() in multi mode', (cb) ->
+    it 'throws exception when calling next() in multi mode', (done) ->
       flow.exec(
         ->
           nt => assert.throws => @()
           do (cb = @multi()) -> nt -> cb()
-        cb
+        done
       )
 
   describe '#error', ->
-    it 'should run only error callback on error if present', (cb) ->
+    it 'runs only error callback on error if present', (done) ->
       flow.exec(
         -> nt => @ 'err'
         -> assert false, 'should not be run'
       ).error (err) ->
         assert.equal err, 'err'
-        cb()
+        done()
 
-    it 'should run only error callback on error if present in multi mode', (cb) ->
+    it 'runs only error callback on error if present in multi mode', (done) ->
       flow.exec(
         ->
           do (cb = @multi()) -> nt -> cb null
@@ -156,24 +156,38 @@ describe 'flow', ->
         -> assert false, 'should not be run'
       ).error (err) ->
         assert.equal err, 'err'
-        cb()
+        done()
 
-    it 'should resume flow', (cb) ->
+    it 'resumes flow', (done) ->
       run = false
       flow.exec(
         -> nt => @ 'err'
         ->
           assert run
           @()
-        cb
+        done
       ).error (err) ->
         assert.equal err, 'err'
         run = true
         @()
 
-  describe 'when context is given', ->
-    it 'should run all the functions in this context', (done) ->
-      obj = {a: 1}
+    it 'strips first argument for usual callbacks', (done) ->
+      flow.exec(
+        (args...) ->
+          assert.deepEqual args, []
+          nt => @ null, 1, 2
+        (args...) ->
+          assert.deepEqual args, [1, 2]
+          nt => @ 'err', 3, 4
+        (args...) -> done assert.deepEqual args, [5, 6]
+      ).error (err, args...) ->
+        assert.equal err, 'err'
+        assert.deepEqual args, [3, 4]
+        @(null, 5, 6)
+
+  context 'when context is given', ->
+    it 'runs all the functions in this context', (done) ->
+      obj = a: 1
       run = 0
       multi = 3
       err_run = 0
@@ -181,17 +195,18 @@ describe 'flow', ->
         blocks: [
           (args..., cb) ->
             assert.deepEqual @, obj
-            assert.deepEqual args, [null, 1, 2, 3]
-            nt ->
-              cb()
+            assert.deepEqual args, [1, 2, 3]
+            nt -> cb()
           (cb) ->
             assert.deepEqual @, obj
             for i in [1..multi]
-              do (cb = cb.multi()) -> nt ->
+              do (cb = cb.multi(), i) -> nt ->
                 run += 1
-                cb()
-          (err, results, cb) ->
+                cb(null, i)
+          (results, cb) ->
             assert.deepEqual @, obj
+            for item, i in [[null, 1], [null, 2], [null, 3]]
+              assert.deepEqual Array::slice.call(results[i]), item
             nt -> cb 'error'
           ->
             assert.deepEqual @, obj
@@ -206,7 +221,7 @@ describe 'flow', ->
         context: obj
       )(null, 1, 2, 3)
 
-    it 'should interpret strings as context`s methods', (done) ->
+    it 'interprets strings as context`s methods', (done) ->
       obj =
         method: (cb) -> nt -> cb 'error'
         other_method: -> done()
@@ -219,8 +234,36 @@ describe 'flow', ->
         error:    'error'
         context:  obj
 
+    context 'when error callback is not set', ->
+      it 'does not strip first argument', (done) ->
+        obj = a: 1
+        do new flow
+          context: obj
+          blocks: [
+            (args..., cb) ->
+              assert.deepEqual args, []
+              cb(1, 2)
+            (args..., cb) ->
+              assert.deepEqual args, [1, 2]
+              cb(null)
+            (args..., cb) ->
+              assert.deepEqual args, [null]
+              cb
+              done()
+          ]
+
+  describe '`final` callback', ->
+    it 'runs last', (done) ->
+      runs = []
+      do new flow
+        final: -> done assert.deepEqual runs, [1, 2]
+        blocks: [
+          -> runs.push 1; @()
+          -> nt => runs.push 2; @()
+        ]
+
   describe '#after', ->
-    it 'should append blocks in reverse order, `final` should run last', (done) ->
+    it 'appends blocks in reverse order', (done) ->
       runs = []
       do new flow
         blocks: [
