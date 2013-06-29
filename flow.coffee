@@ -14,7 +14,8 @@ class Flow extends Function
 
   # TODO: fix runLater for @multi 
   next: (err) ->
-    throw 'Flow: next() called while flow is in multi mode' if @isMulti
+    if @isMulti
+      throw new Error 'Flow: next() called while flow is in multi mode'
     return @ if @frozen
     if @timeoutId
       clearTimeout @timeoutId
