@@ -12,7 +12,7 @@ class Flow extends Function
     self._afterCount    = 0
     return self
 
-  # TODO: fix runLater for @multi 
+  # TODO: fix runLater for @multi
   next: (err) ->
     if @isMulti
       throw new Error 'Flow: next() called while flow is in multi mode'
@@ -74,6 +74,20 @@ class Flow extends Function
       @isMulti        = false
       @_multiSn       = 0
       @next error, results
+
+  # Use it to prevent non-async functions to call next step on current cycle.
+  # Like this:
+  #
+  #   flow.exec(
+  #     ->
+  #       @expectMulti()
+  #       do (cb = @multi()) -> cb()
+  #       # next step would already run if you skip @expectMulti()
+  #       do (cb = @multi()) -> cb()
+  #     ...
+  #   )
+  expectMulti: ->
+    do (callback = @multi()) -> setImmediate -> callback()
 
   after: (fn) ->
     blocks = Array::slice.call @options.blocks
