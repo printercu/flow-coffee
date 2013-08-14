@@ -1,18 +1,17 @@
 # Flow-coffee
 
-Started with few little pull requests for https://github.com/willconant/flow-js.
-Then implemented it with coffee and added few new features.
+Original idea: [flow-js](https://github.com/willconant/flow-js).
+You can read about the concept there.
 
-For now original flow-js is rewritten with using of prototypes.
-It improved performance & memory usage.
-Just a little. Benchmarks are inside (you'll need `node-benchmark` package,
-run it with `nbm bench/flow.coffee`).
+This version is rewritten in coffee using prototypes.
+It contains some extra features mostly needed for
+[costa](https://github.com/printercu/costa).
 
-## Other differences:
-
-### No js version
-For now there is no js version. Just `require('coffee-script')` before
+## No js version
+There is no js version. Just `require('coffee-script')` before
 `require('flow-coffee')`.
+
+## Extra features
 
 ### Custom context
 ```coffee
@@ -36,12 +35,6 @@ do new flow(
 )
 ```
 
-#### Find method by name
-```coffee
-obj = method: (cb) -> # ...
-do new flow blocks: ['method', (cb) -> ], context: obj
-```
-
 ### downcase
 `REWIND`, `MULTI`, `TIMEOUT` are now `rewind`, `multi` & `setTitmeout`.
 Old names are left for compatibility.
@@ -55,7 +48,7 @@ f()       # keep it simple
 ```
 
 ### prototype's aftermath
-For now works only with engines that support `__proto__` (v8 & rhino do).
+This version works only on engines that support `__proto__` (v8 & rhino do).
 
 Now it does mater what context you call `multi`, `setTimeout` and other methods.
 ```coffee
