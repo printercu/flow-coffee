@@ -57,26 +57,12 @@ flow.exec(
     multi = @multi
     ... ->
       func multi() # wrong
-    
+
   ->
     state = @
     ... ->
       func state.multi() # ok
 )
-```
-
-### Support for not async functions (not working with `@multi` yet)
-```coffee
-flow.exec(
-  ->
-    console.log 1
-    @()
-    console.log 2
-  ->
-    console.log 3
-)
-# original flow: 1 3 2
-# flow-coffee: 1 2 3
 ```
 
 ### Multiple results are stored in the order the `@multi()` is called, not callbacks

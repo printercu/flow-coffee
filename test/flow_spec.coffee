@@ -46,22 +46,6 @@ describe 'Flow', ->
         done
       )
 
-    it 'runs serial not async functions', (done) ->
-      x = []
-      flow.exec(
-        ->
-          @ x.push 1
-          assert.deepEqual x, [1]
-        (l) ->
-          assert.equal x.length, l
-          @ x.push 2
-          assert.deepEqual x, [1, 2]
-        (l) ->
-          assert.equal x.length, l
-          @ assert.deepEqual x, [1, 2]
-        done
-      )
-
     it 'passes arguments', (done) ->
       flow.exec(
         -> @ 1, 2

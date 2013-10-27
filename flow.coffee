@@ -12,7 +12,6 @@ class Flow extends Function
     self._afterCount    = 0
     return self
 
-  # TODO: fix runLater for @multi
   next: (err) ->
     if @isMulti
       throw new Error 'Flow: next() called while flow is in multi mode'
@@ -20,10 +19,6 @@ class Flow extends Function
     if @timeoutId
       clearTimeout @timeoutId
       delete @timeoutId
-    if @running
-      @runLater = arguments
-      return @
-    @running = true
     fn = if @options.error && err?
       @options.error
     else
@@ -37,11 +32,7 @@ class Flow extends Function
       else
         args = if @options.error && !err? then Array::slice.call(arguments, 1) else arguments
         fn.apply @, args
-    @running = false
-    return @ unless @runLater
-    args = @runLater
-    delete @runLater
-    @next args...
+    @
 
   # signals that the next call to thisFlow should repeat this step.
   # It allows you to create serial loops.
@@ -100,7 +91,7 @@ class Flow extends Function
   # Sets a timeout that freezes a flow and calls the provided callback.
   # This timeout is cleared if the next flow step happens first.
   setTimeout: (milliseconds, timeoutCallback) ->
-    throw new Error "timeout already set for this flow step" if @timeoutId
+    throw new Error 'Timeout already set for this flow step' if @timeoutId
     @timeoutId = setTimeout(
       =>
         @frozen = true
