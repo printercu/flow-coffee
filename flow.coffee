@@ -5,7 +5,7 @@ class Flow extends Function
     self.options        = options
     self.nextBlockIdx   = 0
     self.isMulti        = false
-    self._multiCount    = 0
+    self._multiRunning  = 0
     self._multiError    = null
     self._multiResults  = []
     self._multiSn       = 0
@@ -51,22 +51,41 @@ class Flow extends Function
   multi: (resultId) ->
     result_sn = @_multiSn++
     @isMulti  = true
-    @_multiCount++
+    @_multiRunning++
     (err) =>
-      @_multiCount--
+      @_multiRunning--
       @_multiError = err if err? && !@_multiError?
       @_multiResults[result_sn] = arguments
       @_multiResults[resultId]  = arguments if resultId
-      return @ if @_multiCount
-      error           = @_multiError
-      results         = @_multiResults
-      @_multiError    = null
-      @_multiResults  = []
-      @isMulti        = false
-      @_multiSn       = 0
-      @next error, results
+      return @ if @_multiRunning || @_expectMulti
+      @_nextMulti()
 
-  # Use it to prevent non-async functions to call next step on current cycle.
+  _nextMulti: ->
+    error           = @_multiError
+    results         = @_multiResults
+    @_multiError    = null
+    @_multiResults  = []
+    @isMulti        = false
+    @_multiSn       = 0
+    @next error, results
+
+  # Use it when you want to run `multi()` but you don't realy know if there
+  # will be any call.
+  #
+  #   flow.exec(
+  #     -> fs.readDir dir, @
+  #     (err, files) ->
+  #       @expectMulti()
+  #       for file in files
+  #         continue if someComplexCondition(file)
+  #         do (cb = @multi()) -> processItem file, cb
+  #     (err, results) ->
+  #       # ...
+  #   )
+  #
+  # Next step will run on other event loop cycle. So you can use it
+  # to prevent sync functions to call next step on current event cycle
+  # (but you'd better use `setImmediate` to make callbacks async).
   # Like this:
   #
   #   flow.exec(
@@ -77,8 +96,16 @@ class Flow extends Function
   #       do (cb = @multi()) -> cb()
   #     ...
   #   )
-  expectMulti: ->
-    do (callback = @multi()) -> setImmediate -> callback()
+  #
+  # stopOnEmpty: stop the flow if no `multi()` was called. By default next step
+  # will be called with empty array of results.
+  expectMulti: (stopOnEmpty) ->
+    @_expectMulti = @isMulti = true
+    setImmediate =>
+      @_expectMulti = false
+      return if @_multiRunning || (stopOnEmpty && !@_multiSn)
+      @_nextMulti()
+    @
 
   after: (fn) ->
     blocks = Array::slice.call @options.blocks

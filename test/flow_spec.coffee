@@ -99,22 +99,6 @@ describe 'Flow', ->
         done
       )
 
-    # TODO:
-    it 'runs all functions on current step even if some functions aren`t async', null, (done) ->
-      [runs, times] = [0, 10]
-      flow.exec(
-        ->
-          for i in [1..times]
-            do (cb = @multi()) -> cb null, ++runs
-        (err, results) ->
-          console.log results
-          console.log runs
-          assert.equal runs, times, "not enough runs: #{runs} of #{times}"
-          assert.equal results.length, times, "results length does not match: #{results.length} != #{times}"
-          @()
-        done
-      )
-
     it 'throws exception when calling next() in multi mode', (done) ->
       flow.exec(
         ->
@@ -122,6 +106,53 @@ describe 'Flow', ->
           do (cb = @multi()) -> nt -> cb()
         done
       )
+
+  describe '#expectMulti', ->
+    subject = (done, stopOnEmpty) ->
+      [runs, times] = [0, 10]
+      flow.exec(
+        ->
+          @expectMulti(stopOnEmpty)
+          for i in [1..times]
+            do (cb = @multi()) -> cb null, ++runs
+        (err, results) ->
+          assert.equal runs, times, "not enough runs: #{runs} of #{times}"
+          assert.equal results.length, times,
+            "results length does not match: #{results.length} != #{times}"
+          @()
+        done
+      )
+
+    context 'stopOnEmpty = false', ->
+      context 'if `multi()` was called', ->
+        it 'runs all functions on current step', (done) -> subject(done)
+
+      context 'no `multi()` was called', ->
+        it 'runs next step with empty results', (done) ->
+          run = false
+          flow.exec(
+            ->
+              @expectMulti()
+              run = true
+            (err, results) ->
+              assert run
+              assert.equal err, undefined
+              assert.equal results.length, 0
+              done()
+          )
+
+    context 'stopOnEmpty = true', ->
+      context 'if `multi()` was called', ->
+        it 'runs as usual', (done) -> subject(done, true)
+
+      context 'no `multi()` was called', ->
+        it 'stops the flow', (done) ->
+          flow.exec(
+            ->
+              @expectMulti(true)
+              done()
+            -> throw new Error 'should not run'
+          )
 
   describe '#error', ->
     it 'runs only error callback on error if present', (done) ->
