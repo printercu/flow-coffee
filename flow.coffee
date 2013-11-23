@@ -23,15 +23,25 @@ class Flow extends Function
       @options.error
     else
       @options.blocks[@nextBlockIdx++] || @options.final
-    if fn
-      if @options.context
-        fn = @options.context[fn] unless typeof fn == 'function'
-        args = Array::slice.call(arguments, (if @options.error && !err? then 1 else 0))
-        args.push @
-        fn.apply @options.context, args
-      else
-        args = if @options.error && !err? then Array::slice.call(arguments, 1) else arguments
-        fn.apply @, args
+    @invoke fn, arguments if fn
+    @
+
+  invoke: (fn, args = [], callback) ->
+    if Array.isArray fn
+      @expectMulti()
+      for f in fn
+        do (callback = @multi()) => @invoke f, args, callback
+      return @
+    callback ||= @
+    err = args[0]
+    if @options.context
+      fn = @options.context[fn] unless typeof fn == 'function'
+      args = Array::slice.call(args, (if @options.error && !err? then 1 else 0))
+      args.push callback
+      fn.apply @options.context, args
+    else
+      args = Array::slice.call(args, 1) if @options.error && !err?
+      fn.apply callback, args
     @
 
   # signals that the next call to thisFlow should repeat this step.

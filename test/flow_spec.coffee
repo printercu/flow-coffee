@@ -267,6 +267,24 @@ describe 'Flow', ->
               done()
           ]
 
+  describe '#invoke', ->
+    it 'runs array of functions in multi mode', (done) ->
+      runinig = false
+      do new flow
+        blocks: [
+          [
+            -> nt =>
+              assert runinig
+              @ 1
+            ->
+              runinig = true
+              nt => @ 2
+          ]
+          (err, results) ->
+            assert.deepEqual (x[0] for x in results), [1, 2]
+            done()
+        ]
+
   describe '`final` callback', ->
     it 'runs last', (done) ->
       runs = []
