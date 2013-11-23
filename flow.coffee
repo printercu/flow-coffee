@@ -36,12 +36,18 @@ class Flow extends Function
     err = args[0]
     if @options.context
       fn = @options.context[fn] unless typeof fn == 'function'
-      args = Array::slice.call(args, (if @options.error && !err? then 1 else 0))
+      args = if @options.stripArgs
+        if @options.error && err? then [err] else []
+      else
+        Array::slice.call(args, (if @options.error && !err? then 1 else 0))
       args.push callback
       fn.apply @options.context, args
     else
-      args = Array::slice.call(args, 1) if @options.error && !err?
-      fn.apply callback, args
+      if @options.stripArgs
+        fn.call callback
+      else
+        args = Array::slice.call(args, 1) if @options.error && !err?
+        fn.apply callback, args
     @
 
   # signals that the next call to thisFlow should repeat this step.

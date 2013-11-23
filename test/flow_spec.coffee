@@ -267,6 +267,41 @@ describe 'Flow', ->
               done()
           ]
 
+      context 'when stripArgs is set', ->
+        it 'strips all arguments for usual callbacks', (done) ->
+          do new flow
+            context:    {}
+            stripArgs:  true
+            blocks: [
+              (next) -> nt => next 1, 2, 3
+              (next) -> next()
+              -> done()
+            ]
+
+    context 'when stripArgs is set', ->
+      it 'strips all arguments for usual callbacks', (done) ->
+        do new flow
+          context:    {}
+          stripArgs:  true
+          error:      done
+          blocks: [
+            (next) -> nt => next null, 1, 2, 3
+            (next) -> next()
+            -> done()
+          ]
+
+      it 'strips all arguments except first for error callback', (done) ->
+        do new flow
+          context:    {}
+          stripArgs:  true
+          blocks: [
+            (next) -> nt => next 'err', 1, 2, 3
+            -> done()
+          ]
+          error: (err, next) ->
+            assert.equal err, 'err'
+            next()
+
   describe '#invoke', ->
     it 'runs array of functions in multi mode', (done) ->
       runinig = false
